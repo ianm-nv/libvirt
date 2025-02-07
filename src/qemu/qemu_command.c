@@ -975,6 +975,7 @@ qemuBuildVirtioDevGetConfigDev(const virDomainDeviceDef *device,
         case VIR_DOMAIN_DEVICE_IOMMU:
         case VIR_DOMAIN_DEVICE_AUDIO:
         case VIR_DOMAIN_DEVICE_PSTORE:
+        case VIR_DOMAIN_DEVICE_EGM:
         case VIR_DOMAIN_DEVICE_LAST:
         default:
             break;
@@ -3220,18 +3221,25 @@ qemuBuildMemoryBackendProps(virJSONValue **backendProps,
     } else if (useHugepage || nvdimmPath || memAccess ||
                def->mem.source == VIR_DOMAIN_MEMORY_SOURCE_FILE) {
 
+    	fprintf(stderr, "%s:[%d] - HERE\n", __FUNCTION__, __LINE__);
+
         if (nvdimmPath) {
+    	    fprintf(stderr, "%s:[%d] - nvdimmPath\n", __FUNCTION__, __LINE__);
             memPath = g_strdup(nvdimmPath);
         } else if (useHugepage) {
+    	    fprintf(stderr, "%s:[%d] - useHugepage\n", __FUNCTION__, __LINE__);
             if (qemuGetDomainHupageMemPath(priv->driver, def, pagesize, &memPath) < 0)
                 return -1;
         } else {
+    	    fprintf(stderr, "%s:[%d] - CREATE\n", __FUNCTION__, __LINE__);
             /* We can have both pagesize and mem source. If that's the case,
              * prefer hugepages as those are more specific. */
             if (qemuDomainGetMemoryBackingPath(priv, mem->info.alias,
                                                &memPath) < 0)
                 return -1;
         }
+
+    	fprintf(stderr, "%s:[%d] - mem-path[%s]\n", __FUNCTION__, __LINE__, memPath);
 
         if (virJSONValueObjectAdd(&props,
                                   "s:mem-path", memPath,
@@ -7492,6 +7500,7 @@ qemuBuildNumaCommandLine(virQEMUDriverConfig *cfg,
     ssize_t masterInitiator = -1;
     int rc;
 
+    fprintf(stderr, "%s:[%d] - NUMA\n", __FUNCTION__, __LINE__);
     if (!virDomainNumatuneNodesetIsAvailable(def->numa, priv->autoNodeset))
         goto cleanup;
 
@@ -10246,6 +10255,66 @@ qemuBuildPstoreCommandLine(virCommand *cmd,
     return 0;
 }
 
+static int
+qemuBuildAcpiEgmCommandLine(virCommand *cmd,
+                           const virDomainDef *def,
+                           virDomainAcpiEgmDef *egm,
+                           virQEMUCaps *qemuCaps)
+{
+    g_autoptr(virJSONValue) egmProps = NULL;
+    g_autoptr(virJSONValue) numaEgmProps = NULL;
+    g_autoptr(virJSONValue) memEgmProps = NULL;
+    g_autofree char *egmAlias = NULL;
+    g_autofree char *numaEgmAlias = NULL;
+    unsigned long long memsize = virDomainDefGetMemoryInitial(def);
+    
+    fprintf(stderr, "%s:[%d] - memsize[%llu]\n", __FUNCTION__, __LINE__, memsize);
+    fprintf(stderr, "%s:[%d] - alias[%s]\n", __FUNCTION__, __LINE__, egm->alias);
+
+    egmAlias = g_strdup_printf("mem%s", egm->alias);
+    fprintf(stderr, "%s:[%d] - egmAlias[%s]\n", __FUNCTION__, __LINE__, egmAlias);
+
+    if (qemuMonitorCreateObjectProps(&memEgmProps,
+			    	     "memory-backend-file",
+				     egmAlias,
+				     "s:mem-path", "/dev/egm0",
+				     "U:size", memsize * 1024ULL,
+				     "s:share", "on",
+				     "s:prealloc", "on",
+				     NULL) < 0) {
+    	return -1;
+    }
+    
+    numaEgmAlias = g_strdup_printf("numa%s", egm->alias);
+    if (qemuMonitorCreateObjectProps(&numaEgmProps,
+			    	     "numa",
+				     numaEgmAlias,
+				     "s:nodeid", "0",
+				     "s:mem-dev", "m0",
+				     NULL) < 0) {
+    	return -1;
+    }
+
+    if (qemuMonitorCreateObjectProps(&egmProps,
+			    	     "acpi-egm-memory",
+				     egm->alias,
+			             "s:pci-dev", egm->pci_dev,
+			             "u:node", egm->node,
+				     NULL) < 0) {
+    	return -1;
+    }
+
+    if (qemuBuildObjectCommandlineFromJSON(cmd, memEgmProps, qemuCaps) < 0)
+        return -1;
+
+    if (qemuBuildObjectCommandlineFromJSON(cmd, numaEgmProps, qemuCaps) < 0)
+        return -1;
+
+    if (qemuBuildObjectCommandlineFromJSON(cmd, egmProps, qemuCaps) < 0)
+        return -1;
+
+    return 0;
+}
 
 static int
 qemuBuildAsyncTeardownCommandLine(virCommand *cmd,
@@ -10610,6 +10679,11 @@ qemuBuildCommandLine(virDomainObj *vm,
 
     if (def->pstore &&
         qemuBuildPstoreCommandLine(cmd, def, def->pstore, qemuCaps) < 0)
+        return NULL;
+
+    fprintf(stderr, "%s:[%d] - Check EGM\n", __FUNCTION__, __LINE__);
+    if (def->egm &&
+        qemuBuildAcpiEgmCommandLine(cmd, def, def->egm, qemuCaps) < 0)
         return NULL;
 
     if (qemuBuildAsyncTeardownCommandLine(cmd, def, qemuCaps) < 0)

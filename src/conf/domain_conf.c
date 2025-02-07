@@ -341,6 +341,7 @@ VIR_ENUM_IMPL(virDomainDevice,
               "audio",
               "crypto",
               "pstore",
+              "egm",
 );
 
 VIR_ENUM_IMPL(virDomainDiskDevice,
@@ -3583,6 +3584,16 @@ void virDomainPstoreDefFree(virDomainPstoreDef *def)
     g_free(def);
 }
 
+void virDomainAcpiEgmDefFree(virDomainAcpiEgmDef *def)
+{
+    if (!def)
+        return;
+
+    //g_free(def->path);
+    //virDomainDeviceInfoClear(&def->info);
+    g_free(def);
+}
+
 void virDomainDeviceDefFree(virDomainDeviceDef *def)
 {
     if (!def)
@@ -3669,6 +3680,9 @@ void virDomainDeviceDefFree(virDomainDeviceDef *def)
         break;
     case VIR_DOMAIN_DEVICE_PSTORE:
         virDomainPstoreDefFree(def->data.pstore);
+        break;
+    case VIR_DOMAIN_DEVICE_EGM:
+        virDomainAcpiEgmDefFree(def->data.egm);
         break;
     case VIR_DOMAIN_DEVICE_LAST:
     case VIR_DOMAIN_DEVICE_NONE:
@@ -4596,6 +4610,8 @@ virDomainDeviceGetInfo(const virDomainDeviceDef *device)
         return &device->data.crypto->info;
     case VIR_DOMAIN_DEVICE_PSTORE:
         return &device->data.pstore->info;
+    case VIR_DOMAIN_DEVICE_EGM:
+        return &device->data.egm->info;
 
     /* The following devices do not contain virDomainDeviceInfo */
     case VIR_DOMAIN_DEVICE_LEASE:
@@ -4703,6 +4719,9 @@ virDomainDeviceSetData(virDomainDeviceDef *device,
         break;
     case VIR_DOMAIN_DEVICE_PSTORE:
         device->data.pstore = devicedata;
+        break;
+    case VIR_DOMAIN_DEVICE_EGM:
+        device->data.egm = devicedata;
         break;
     case VIR_DOMAIN_DEVICE_NONE:
     case VIR_DOMAIN_DEVICE_LAST:
@@ -4929,6 +4948,13 @@ virDomainDeviceInfoIterateFlags(virDomainDef *def,
             return rc;
     }
 
+    device.type = VIR_DOMAIN_DEVICE_EGM;
+    if (def->egm) {
+        device.data.egm = def->egm;
+        if ((rc = cb(def, &device, &def->egm->info, opaque)) != 0)
+            return rc;
+    }
+
     /* If the flag below is set, make sure @cb can handle @info being NULL */
     if (iteratorFlags & DOMAIN_DEVICE_ITERATE_MISSING_INFO) {
         device.type = VIR_DOMAIN_DEVICE_GRAPHICS;
@@ -4989,6 +5015,7 @@ virDomainDeviceInfoIterateFlags(virDomainDef *def,
     case VIR_DOMAIN_DEVICE_AUDIO:
     case VIR_DOMAIN_DEVICE_CRYPTO:
     case VIR_DOMAIN_DEVICE_PSTORE:
+    case VIR_DOMAIN_DEVICE_EGM:
         break;
     }
 #endif
@@ -14180,6 +14207,42 @@ virDomainPstoreDefParseXML(virDomainXMLOption *xmlopt,
 }
 
 
+static virDomainAcpiEgmDef *
+virDomainAcpiEgmDefParseXML(virDomainXMLOption *xmlopt,
+                           xmlNodePtr node,
+                           xmlXPathContextPtr ctxt,
+                           unsigned int flags)
+{
+    g_autoptr(virDomainAcpiEgmDef) def = NULL;
+    VIR_XPATH_NODE_AUTORESTORE(ctxt)
+    int rc;
+    xmlNodePtr alias = NULL;
+
+    def = g_new0(virDomainAcpiEgmDef, 1);
+
+    ctxt->node = node;
+
+    alias = virXPathNode("./alias", ctxt);
+    if (!alias)
+        return NULL;
+    def->alias = virXMLPropString(alias, "name");
+    def->pci_dev = virXPathString("string(./pci-dev)", ctxt);
+    rc = virXPathInt("string(./node)", ctxt, &def->node);
+    if (rc == -2 || (rc == 0 && def->node < 0)) {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+                       _("invalid NUMA node in target"));
+        return NULL;
+    }
+
+    if (virDomainDeviceInfoParseXML(xmlopt, node, ctxt, &def->info, flags) < 0)
+        return NULL;
+
+    fprintf(stderr, "%s:[%d] - alias[%s] - pci_dev[%s] - node[%d]\n", __FUNCTION__, __LINE__, def->alias, def->pci_dev, def->node);
+
+    return g_steal_pointer(&def);
+}
+
+
 static int
 virDomainDeviceDefParseType(const char *typestr,
                             virDomainDeviceType *type)
@@ -14361,6 +14424,12 @@ virDomainDeviceDefParse(const char *xmlStr,
         break;
     case VIR_DOMAIN_DEVICE_PSTORE:
         if (!(dev->data.pstore = virDomainPstoreDefParseXML(xmlopt, node,
+                                                            ctxt, flags))) {
+            return NULL;
+        }
+        break;
+    case VIR_DOMAIN_DEVICE_EGM:
+        if (!(dev->data.egm = virDomainAcpiEgmDefParseXML(xmlopt, node,
                                                             ctxt, flags))) {
             return NULL;
         }
@@ -18464,6 +18533,14 @@ virDomainDefParseMemory(virDomainDef *def,
                            _("unknown memoryBacking/source/type '%1$s'"), tmp);
             return -1;
         }
+	if (def->mem.source == VIR_DOMAIN_MEMORY_SOURCE_FILE) {
+    		fprintf(stderr, "%s:[%d] - VIR_DOMAIN_MEMORY_SOURCE_FILE\n", __FUNCTION__, __LINE__);
+    	    tmp = virXPathString("string(./memoryBacking/source/@path)", ctxt);
+	    if (tmp) {
+    		fprintf(stderr, "%s:[%d] - path[%s]\n", __FUNCTION__, __LINE__, tmp);
+                VIR_FREE(tmp);
+	    }
+	}
         VIR_FREE(tmp);
     }
 
@@ -19750,6 +19827,23 @@ virDomainDefParseXML(xmlXPathContextPtr ctxt,
     }
     VIR_FREE(nodes);
 
+    fprintf(stderr, "%s:[%d] - PARSE EGM MEMORY\n", __FUNCTION__, __LINE__);
+    if ((n = virXPathNodeSet("./devices/acpi-egm-memory", ctxt, &nodes)) < 0)
+        return NULL;
+
+    if (n > 1) {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+                       _("only a single egm device is supported"));
+        return NULL;
+    }
+
+    if (n > 0) {
+        if (!(def->egm = virDomainAcpiEgmDefParseXML(xmlopt, nodes[0],
+                                                       ctxt, flags)))
+            return NULL;
+    }
+    VIR_FREE(nodes);
+
     /* analysis of the user namespace mapping */
     if ((n = virXPathNodeSet("./idmap/uid", ctxt, &nodes)) < 0)
         return NULL;
@@ -19820,7 +19914,7 @@ virDomainDefParseXML(xmlXPathContextPtr ctxt,
         if ((def->ns.parse)(ctxt, &def->namespaceData) < 0)
             return NULL;
     }
-
+ 
     return g_steal_pointer(&def);
 }
 
@@ -22170,6 +22264,7 @@ virDomainDefCheckABIStabilityFlags(virDomainDef *src,
     case VIR_DOMAIN_DEVICE_AUDIO:
     case VIR_DOMAIN_DEVICE_CRYPTO:
     case VIR_DOMAIN_DEVICE_PSTORE:
+    case VIR_DOMAIN_DEVICE_EGM:
         break;
     }
 #endif
@@ -28205,6 +28300,19 @@ virDomainPstoreDefFormat(virBuffer *buf,
     return 0;
 }
 
+static int
+virDomainAcpiEgmDefFormat(virBuffer *buf,
+                         virDomainAcpiEgmDef *egm)
+{
+    g_auto(virBuffer) childBuf = VIR_BUFFER_INIT_CHILD(buf);
+
+    virBufferAsprintf(&childBuf, "<alias name='%s'/>\n", egm->alias);
+    virBufferAsprintf(&childBuf, "<pci-dev>%s</pci-dev>\n", egm->pci_dev);
+    virBufferAsprintf(&childBuf, "<numa-node>%d</numa-node>\n", egm->node);
+
+    virXMLFormatElement(buf, "acpi-egm-memory", NULL, &childBuf);
+    return 0;
+}
 
 int
 virDomainDefFormatInternal(virDomainDef *def,
@@ -28680,6 +28788,9 @@ virDomainDefFormatInternalSetRootName(virDomainDef *def,
     if (def->pstore)
         virDomainPstoreDefFormat(buf, def->pstore, flags);
 
+    if (def->egm)
+        virDomainAcpiEgmDefFormat(buf, def->egm);
+
     virBufferAdjustIndent(buf, -2);
     virBufferAddLit(buf, "</devices>\n");
 
@@ -28840,6 +28951,7 @@ virDomainDeviceIsUSB(virDomainDeviceDef *dev,
     case VIR_DOMAIN_DEVICE_AUDIO:
     case VIR_DOMAIN_DEVICE_CRYPTO:
     case VIR_DOMAIN_DEVICE_PSTORE:
+    case VIR_DOMAIN_DEVICE_EGM:
     break;
     }
 
