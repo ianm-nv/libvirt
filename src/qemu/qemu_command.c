@@ -3149,6 +3149,7 @@ qemuBuildMemoryBackendProps(virJSONValue **backendProps,
      * former is true whenever "memory-backend-file" must be used to satisfy
      * @useHugepage. */
 
+    fprintf(stderr, "%s:[%d] - START\n", __FUNCTION__, __LINE__);
     *backendProps = NULL;
 
     if (mem->targetNode >= 0) {
@@ -3230,6 +3231,9 @@ qemuBuildMemoryBackendProps(virJSONValue **backendProps,
     	    fprintf(stderr, "%s:[%d] - useHugepage\n", __FUNCTION__, __LINE__);
             if (qemuGetDomainHupageMemPath(priv->driver, def, pagesize, &memPath) < 0)
                 return -1;
+        } else if (def->mem.path) {
+    	    fprintf(stderr, "%s:[%d] - def->mem.path\n", __FUNCTION__, __LINE__);
+            memPath = g_strdup(def->mem.path);
         } else {
     	    fprintf(stderr, "%s:[%d] - CREATE\n", __FUNCTION__, __LINE__);
             /* We can have both pagesize and mem source. If that's the case,
@@ -3376,6 +3380,8 @@ qemuBuildMemoryBackendProps(virJSONValue **backendProps,
 
     *backendProps = g_steal_pointer(&props);
 
+    fprintf(stderr, "%s:[%d] - FINISH\n", __FUNCTION__, __LINE__);
+
     return rc;
 }
 
@@ -3393,12 +3399,15 @@ qemuBuildMemoryCellBackendProps(virDomainDef *def,
     unsigned long long memsize = virDomainNumaGetNodeMemorySize(def->numa,
                                                                 cell);
 
+    fprintf(stderr, "%s:[%d] - START\n", __FUNCTION__, __LINE__);
+
     alias = g_strdup_printf("ram-node%zu", cell);
 
     mem.size = memsize;
     mem.targetNode = cell;
     mem.info.alias = alias;
 
+    fprintf(stderr, "%s:[%d] - CALL qemuBuildMemoryBackendProps\n", __FUNCTION__, __LINE__);
     return qemuBuildMemoryBackendProps(props, alias, cfg, priv, def,
                                        &mem, false, false, nodemask);
 }
@@ -10274,17 +10283,20 @@ qemuBuildAcpiEgmCommandLine(virCommand *cmd,
     egmAlias = g_strdup_printf("mem%s", egm->alias);
     fprintf(stderr, "%s:[%d] - egmAlias[%s]\n", __FUNCTION__, __LINE__, egmAlias);
 
+    /*
     if (qemuMonitorCreateObjectProps(&memEgmProps,
 			    	     "memory-backend-file",
 				     egmAlias,
 				     "s:mem-path", "/dev/egm0",
 				     "U:size", memsize * 1024ULL,
-				     "s:share", "on",
-				     "s:prealloc", "on",
+				     "b:share", true,
+				     "b:prealloc", true,
 				     NULL) < 0) {
     	return -1;
     }
+    */
     
+    /*
     numaEgmAlias = g_strdup_printf("numa%s", egm->alias);
     if (qemuMonitorCreateObjectProps(&numaEgmProps,
 			    	     "numa",
@@ -10294,6 +10306,7 @@ qemuBuildAcpiEgmCommandLine(virCommand *cmd,
 				     NULL) < 0) {
     	return -1;
     }
+    */
 
     if (qemuMonitorCreateObjectProps(&egmProps,
 			    	     "acpi-egm-memory",
@@ -10304,11 +10317,15 @@ qemuBuildAcpiEgmCommandLine(virCommand *cmd,
     	return -1;
     }
 
+    /*
     if (qemuBuildObjectCommandlineFromJSON(cmd, memEgmProps, qemuCaps) < 0)
         return -1;
+    */
 
+    /*
     if (qemuBuildObjectCommandlineFromJSON(cmd, numaEgmProps, qemuCaps) < 0)
         return -1;
+    */
 
     if (qemuBuildObjectCommandlineFromJSON(cmd, egmProps, qemuCaps) < 0)
         return -1;

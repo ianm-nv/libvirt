@@ -18535,10 +18535,9 @@ virDomainDefParseMemory(virDomainDef *def,
         }
 	if (def->mem.source == VIR_DOMAIN_MEMORY_SOURCE_FILE) {
     		fprintf(stderr, "%s:[%d] - VIR_DOMAIN_MEMORY_SOURCE_FILE\n", __FUNCTION__, __LINE__);
-    	    tmp = virXPathString("string(./memoryBacking/source/@path)", ctxt);
-	    if (tmp) {
-    		fprintf(stderr, "%s:[%d] - path[%s]\n", __FUNCTION__, __LINE__, tmp);
-                VIR_FREE(tmp);
+    	    def->mem.path = virXPathString("string(./memoryBacking/source/@path)", ctxt);
+	    if (def->mem.path) {
+    		fprintf(stderr, "%s:[%d] - path[%s]\n", __FUNCTION__, __LINE__, def->mem.path);
 	    }
 	}
         VIR_FREE(tmp);
@@ -27807,9 +27806,14 @@ virDomainMemorybackingFormat(virBuffer *buf,
         virBufferAddLit(&childBuf, "<nosharepages/>\n");
     if (mem->locked)
         virBufferAddLit(&childBuf, "<locked/>\n");
-    if (mem->source)
-        virBufferAsprintf(&childBuf, "<source type='%s'/>\n",
-                          virDomainMemorySourceTypeToString(mem->source));
+    if (mem->source) {
+	if (mem->path)
+            virBufferAsprintf(&childBuf, "<source type='%s' path='%s'/>\n",
+                              virDomainMemorySourceTypeToString(mem->source), mem->path);
+	else
+            virBufferAsprintf(&childBuf, "<source type='%s'/>\n",
+                              virDomainMemorySourceTypeToString(mem->source));
+    }
     if (mem->access)
         virBufferAsprintf(&childBuf, "<access mode='%s'/>\n",
                           virDomainMemoryAccessTypeToString(mem->access));

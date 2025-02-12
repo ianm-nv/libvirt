@@ -410,6 +410,14 @@ qemuDomainSetupAllMemories(virDomainObj *vm,
                                   paths) < 0)
             return -1;
     }
+
+    /*
+    if (vm->def->mem.path) {
+    	fprintf(stderr, "%s:[%d] - SET mem.path[%s]\n", __FUNCTION__, __LINE__, vm->def->mem.path);
+        *paths = g_slist_prepend(*paths, g_strdup(vm->def->mem.path));
+    }
+    */
+
     VIR_DEBUG("Setup all memories");
     return 0;
 }

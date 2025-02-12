@@ -1786,7 +1786,10 @@ qemuDomainGetMemoryBackingPath(qemuDomainObjPrivate *priv,
         return -1;
     }
 
+    fprintf(stderr, "%s:[%d] - memoryBackingDir[%s]\n", __FUNCTION__, __LINE__, priv->memoryBackingDir);
+    fprintf(stderr, "%s:[%d] - alias[%s]\n", __FUNCTION__, __LINE__, alias);
     *memPath = g_strdup_printf("%s/%s", priv->memoryBackingDir, alias);
+    fprintf(stderr, "%s:[%d] - memPath[%s]\n", __FUNCTION__, __LINE__, *memPath);
 
     return 0;
 }
