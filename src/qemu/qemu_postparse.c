@@ -784,9 +784,15 @@ qemuDomainPstoreDefPostParse(virDomainPstoreDef *pstore,
 
 static int
 qemuDomainAcpiEgmDefPostParse(virDomainAcpiEgmDef *egm,
+                             const virDomainDef *def,
                              virQEMUDriver *driver)
 {
     g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+
+    if (def->numa) {
+    	fprintf(stderr, "%s:[%d] - numa count[%ld]\n", __FUNCTION__, __LINE__, virDomainNumaGetNodeCount(def->numa));
+    	fprintf(stderr, "%s:[%d] - egm->node[%d]\n", __FUNCTION__, __LINE__, egm->node);
+    }
 
     return 0;
 }
@@ -888,7 +894,7 @@ qemuDomainDeviceDefPostParse(virDomainDeviceDef *dev,
         break;
 
     case VIR_DOMAIN_DEVICE_EGM:
-        ret = qemuDomainAcpiEgmDefPostParse(dev->data.egm, driver);
+        ret = qemuDomainAcpiEgmDefPostParse(dev->data.egm, def, driver);
         break;
 
     case VIR_DOMAIN_DEVICE_IOMMU:
