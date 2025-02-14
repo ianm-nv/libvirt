@@ -410,6 +410,14 @@ qemuDomainSetupAllMemories(virDomainObj *vm,
                                   paths) < 0)
             return -1;
     }
+
+    /*
+    if (vm->def->mem.path) {
+    	fprintf(stderr, "%s:[%d] - SET mem.path[%s]\n", __FUNCTION__, __LINE__, vm->def->mem.path);
+        *paths = g_slist_prepend(*paths, g_strdup(vm->def->mem.path));
+    }
+    */
+
     VIR_DEBUG("Setup all memories");
     return 0;
 }
@@ -677,6 +685,24 @@ qemuDomainSetupLaunchSecurity(virDomainObj *vm,
 
 
 static int
+qemuDomainSetupAcpiEgm(virDomainObj *vm,
+                       GSList **paths)
+{
+    virDomainAcpiEgmDef *egm = vm->def->egm;
+    g_autofree char *path = NULL;
+
+    if (!egm)
+        return 0;
+
+    path = g_strdup_printf("/dev/%s", egm->alias);
+
+    *paths = g_slist_prepend(*paths, g_steal_pointer(&path));
+
+    return 0;
+}
+
+
+static int
 qemuNamespaceMknodPaths(virDomainObj *vm,
                         GSList *paths,
                         bool *created);
@@ -727,6 +753,9 @@ qemuDomainBuildNamespace(virQEMUDriverConfig *cfg,
         return -1;
 
     if (qemuDomainSetupLaunchSecurity(vm, &paths) < 0)
+        return -1;
+
+    if (qemuDomainSetupAcpiEgm(vm, &paths) < 0)
         return -1;
 
     if (qemuNamespaceMknodPaths(vm, paths, NULL) < 0)

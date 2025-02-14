@@ -4742,6 +4742,15 @@ qemuValidateDomainDeviceDefPstore(virDomainPstoreDef *pstore,
     return 0;
 }
 
+static int
+qemuValidateDomainDeviceDefAcpiEgm(virDomainAcpiEgmDef *egm,
+                                  const virDomainDef *def G_GNUC_UNUSED,
+                                  virQEMUCaps *qemuCaps G_GNUC_UNUSED)
+{
+    fprintf(stderr, "%s:[%d] - alias[%s] - pci_dev[%s] - node[%d]\n", __FUNCTION__, __LINE__, egm->alias, egm->pci_dev, egm->node);
+
+    return 0;
+}
 
 static int
 qemuSoundCodecTypeToCaps(int type)
@@ -5454,6 +5463,9 @@ qemuValidateDomainDeviceDef(const virDomainDeviceDef *dev,
 
     case VIR_DOMAIN_DEVICE_PSTORE:
         return qemuValidateDomainDeviceDefPstore(dev->data.pstore, def, qemuCaps);
+
+    case VIR_DOMAIN_DEVICE_EGM:
+        return qemuValidateDomainDeviceDefAcpiEgm(dev->data.egm, def, qemuCaps);
 
     case VIR_DOMAIN_DEVICE_LEASE:
     case VIR_DOMAIN_DEVICE_PANIC:

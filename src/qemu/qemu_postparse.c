@@ -782,6 +782,14 @@ qemuDomainPstoreDefPostParse(virDomainPstoreDef *pstore,
     return 0;
 }
 
+static int
+qemuDomainAcpiEgmDefPostParse(virDomainAcpiEgmDef *egm,
+                             virQEMUDriver *driver)
+{
+    g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+
+    return 0;
+}
 
 static int
 qemuDomainIOMMUDefPostParse(virDomainIOMMUDef *iommu,
@@ -877,6 +885,10 @@ qemuDomainDeviceDefPostParse(virDomainDeviceDef *dev,
 
     case VIR_DOMAIN_DEVICE_PSTORE:
         ret = qemuDomainPstoreDefPostParse(dev->data.pstore, def, driver);
+        break;
+
+    case VIR_DOMAIN_DEVICE_EGM:
+        ret = qemuDomainAcpiEgmDefPostParse(dev->data.egm, driver);
         break;
 
     case VIR_DOMAIN_DEVICE_IOMMU:

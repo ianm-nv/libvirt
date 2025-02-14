@@ -3114,6 +3114,19 @@ virDomainPstoreDefValidate(const virDomainPstoreDef *pstore)
     return 0;
 }
 
+static int
+virDomainAcpiEgmDefValidate(const virDomainAcpiEgmDef *egm)
+{
+    if (egm->pci_dev == NULL || egm->pci_dev[0] == '\0') {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+                       _("missing pci_dev for ACPI EGM device"));
+        return -1;
+    }
+
+    fprintf(stderr, "%s:[%d] - alias[%s] - pci_dev[%s] - node[%d]\n", __FUNCTION__, __LINE__, egm->alias, egm->pci_dev, egm->node);
+
+    return 0;
+}
 
 static int
 virDomainDeviceInfoValidate(const virDomainDeviceDef *dev)
@@ -3227,6 +3240,9 @@ virDomainDeviceDefValidateInternal(const virDomainDeviceDef *dev,
 
     case VIR_DOMAIN_DEVICE_PSTORE:
         return virDomainPstoreDefValidate(dev->data.pstore);
+
+    case VIR_DOMAIN_DEVICE_EGM:
+        return virDomainAcpiEgmDefValidate(dev->data.egm);
 
     case VIR_DOMAIN_DEVICE_LEASE:
     case VIR_DOMAIN_DEVICE_WATCHDOG:

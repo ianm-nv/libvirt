@@ -756,6 +756,23 @@ qemuSetupSEVCgroup(virDomainObj *vm)
 }
 
 static int
+qemuSetupAcpiEgmCgroup(virDomainObj *vm)
+{
+    g_autofree char *path = NULL;
+
+    path = g_strdup_printf("/dev/%s", vm->def->egm->alias);
+
+    if (path &&
+	qemuCgroupAllowDevicePath(vm, path,
+                                  VIR_CGROUP_DEVICE_RW, false) < 0) {
+	return -1;
+    }
+    path = NULL;
+
+    return 0;
+}
+
+static int
 qemuSetupDevicesCgroup(virDomainObj *vm)
 {
     qemuDomainObjPrivate *priv = vm->privateData;
@@ -871,6 +888,11 @@ qemuSetupDevicesCgroup(virDomainObj *vm)
             virReportEnumRangeError(virDomainLaunchSecurity, vm->def->sec->sectype);
             return -1;
         }
+    }
+
+    if (vm->def->egm) {
+        if (qemuSetupAcpiEgmCgroup(vm) < 0)
+            return -1;
     }
 
     return 0;
