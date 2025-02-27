@@ -7438,6 +7438,8 @@ qemuProcessPrepareHost(virQEMUDriver *driver,
     if (qemuProcessPreparePstore(vm) < 0)
         return -1;
 
+    fprintf(stderr, "%s:[%d] - HERE\n", __FUNCTION__, __LINE__);
+
     return 0;
 }
 
@@ -8121,6 +8123,7 @@ qemuProcessLaunch(virConnectPtr conn,
  cleanup:
     qemuDomainSchedCoreStop(priv);
     qemuDomainStartupCleanup(vm);
+
     return ret;
 }
 
