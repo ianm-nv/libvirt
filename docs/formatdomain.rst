@@ -1861,6 +1861,93 @@ For instance, ``target='0' cache='1'`` refers to the first level cache of NUMA
 node 0.
 
 
+ACPI EGM Memory Devices
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The ACPI EGM (Extended Guest Memory) device enables a guest to access extended memory regions 
+through ACPI. This is useful for exposing specialized memory regions from passthrough devices 
+to the guest OS.
+
+::
+
+   <devices>
+     ...
+     <acpi-egm-memory>
+       <alias name='egm0'/>
+       <pci-dev>hostdev0</pci-dev>
+       <numa-node>0</numa-node>
+     </acpi-egm-memory>
+     ...
+   </devices>
+
+The ``acpi-egm-memory`` element has the following sub-elements:
+
+``alias``
+   Specifies a unique identifier for the EGM device.
+
+``pci-dev``
+   Specifies the ID of the PCI device that provides the extended memory. This must
+   reference a valid PCI device defined in the domain configuration.
+
+``numa-node``
+   Specifies the NUMA node to which the extended memory is assigned. This must reference
+   a valid NUMA node defined in the domain configuration.
+
+To use ACPI EGM, you typically need:
+
+1. A passthrough PCI device that exposes memory regions
+2. A NUMA topology defined in the domain configuration
+3. A suitable guest OS that can recognize and utilize the ACPI EGM tables
+4. A QEMU version that supports the ACPI EGM feature
+
+The memory region exposed by the EGM device can be accessed by the guest OS through the ACPI 
+tables. This mechanism is often used for specialized workloads that require direct access to
+device memory regions.
+
+Example configuration:
+
+::
+
+   <domain type='kvm'>
+     <name>egm-example</name>
+     <memory unit='MiB'>8192</memory>
+     <vcpu>4</vcpu>
+     <cpu mode='host-passthrough'>
+       <topology sockets='1' cores='4' threads='1'/>
+       <numa>
+         <cell id='0' cpus='0-3' memory='8192' unit='MiB'/>
+       </numa>
+     </cpu>
+     <os>
+       <type arch='aarch64' machine='virt'>hvm</type>
+       <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+     </os>
+     <devices>
+       <!-- Passthrough PCI device -->
+       <hostdev mode='subsystem' type='pci' managed='yes'>
+         <alias name='hostdev0'/>
+         <source>
+           <address domain='0x0009' bus='0x01' slot='0x00' function='0x00'/>
+         </source>
+       </hostdev>
+       
+       <!-- ACPI EGM device referencing the PCI device -->
+       <acpi-egm-memory>
+         <alias name='egm0'/>
+         <pci-dev>hostdev0</pci-dev>
+         <numa-node>0</numa-node>
+       </acpi-egm-memory>
+     </devices>
+     
+     <!-- Memory backing for the EGM device -->
+     <memoryBacking>
+       <source type='file' path='/dev/egm0'/>
+       <access mode='shared'/>
+       <allocation mode='immediate'/>
+     </memoryBacking>
+   </domain>
+
+
 Events configuration
 --------------------
 
