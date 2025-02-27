@@ -4742,6 +4742,28 @@ qemuValidateDomainDeviceDefPstore(virDomainPstoreDef *pstore,
     return 0;
 }
 
+static int
+qemuValidateDomainDeviceDefAcpiEgm(virDomainAcpiEgmDef *egm,
+                                  const virDomainDef *def,
+                                  virQEMUCaps *qemuCaps)
+{
+    if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_DEVICE_ACPI_EGM_MEMORY)) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                      _("ACPI EGM memory device is not supported with this QEMU binary"));
+        return -1;
+    }
+
+    if (def->numa && egm->node >= 0) {
+        if (egm->node >= virDomainNumaGetNodeCount(def->numa)) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                          _("NUMA node %d for EGM device does not exist"),
+                          egm->node);
+            return -1;
+        }
+    }
+
+    return 0;
+}
 
 static int
 qemuSoundCodecTypeToCaps(int type)
@@ -5454,6 +5476,9 @@ qemuValidateDomainDeviceDef(const virDomainDeviceDef *dev,
 
     case VIR_DOMAIN_DEVICE_PSTORE:
         return qemuValidateDomainDeviceDefPstore(dev->data.pstore, def, qemuCaps);
+
+    case VIR_DOMAIN_DEVICE_EGM:
+        return qemuValidateDomainDeviceDefAcpiEgm(dev->data.egm, def, qemuCaps);
 
     case VIR_DOMAIN_DEVICE_LEASE:
     case VIR_DOMAIN_DEVICE_PANIC:
