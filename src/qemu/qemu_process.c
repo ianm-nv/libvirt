@@ -8121,6 +8121,7 @@ qemuProcessLaunch(virConnectPtr conn,
  cleanup:
     qemuDomainSchedCoreStop(priv);
     qemuDomainStartupCleanup(vm);
+
     return ret;
 }
 

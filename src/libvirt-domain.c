@@ -2953,6 +2953,7 @@ virConnectDomainXMLToNative(virConnectPtr conn,
 
  error:
     virDispatchError(conn);
+
     return NULL;
 }
 
