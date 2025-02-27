@@ -6358,6 +6358,22 @@
     </element>
   </define>
 
+  <define name="acpiEgmMemory">
+    <element name="acpi-egm-memory">
+      <element name="alias">
+        <attribute name="name">
+          <data type="string"/>
+        </attribute>
+      </element>
+      <element name="pci-dev">
+        <data type="string"/>
+      </element>
+      <element name="numa-node">
+        <data type="nonNegativeInteger"/>
+      </element>
+    </element>
+  </define>
+
   <define name="hostdev">
     <element name="hostdev">
       <interleave>
@@ -6829,6 +6845,9 @@
         </optional>
         <optional>
           <ref name="pstore"/>
+        </optional>
+        <optional>
+          <ref name="acpiEgmMemory"/>
         </optional>
       </interleave>
     </element>
