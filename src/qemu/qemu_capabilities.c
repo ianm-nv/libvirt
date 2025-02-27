@@ -721,6 +721,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
               "chardev-reconnect-miliseconds", /* QEMU_CAPS_CHARDEV_RECONNECT_MILISECONDS */
               "virtio-ccw.loadparm", /* QEMU_CAPS_VIRTIO_CCW_DEVICE_LOADPARM */
               "netdev-stream-reconnect-miliseconds", /* QEMU_CAPS_NETDEV_STREAM_RECONNECT_MILISECONDS */
+	          "acpi-egm-memory", /* QEMU_CAPS_ACPI_EGM_MEMORY */
     );
 
 
@@ -1409,6 +1410,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
     { "virtio-sound-device", QEMU_CAPS_DEVICE_VIRTIO_SOUND },
     { "sev-snp-guest", QEMU_CAPS_SEV_SNP_GUEST },
     { "acpi-erst", QEMU_CAPS_DEVICE_ACPI_ERST },
+    { "acpi-egm-memory", QEMU_CAPS_DEVICE_ACPI_EGM_MEMORY },
 };
 
 
