@@ -88,6 +88,7 @@ typedef enum {
     VIR_DOMAIN_DEVICE_AUDIO,
     VIR_DOMAIN_DEVICE_CRYPTO,
     VIR_DOMAIN_DEVICE_PSTORE,
+    VIR_DOMAIN_DEVICE_EGM,
 
     VIR_DOMAIN_DEVICE_LAST
 } virDomainDeviceType;
@@ -122,6 +123,7 @@ struct _virDomainDeviceDef {
         virDomainAudioDef *audio;
         virDomainCryptoDef *crypto;
         virDomainPstoreDef *pstore;
+        virDomainAcpiEgmDef *egm;
     } data;
 };
 
@@ -3094,6 +3096,12 @@ struct _virDomainPstoreDef {
     virDomainDeviceInfo info;
 };
 
+struct _virDomainAcpiEgmDef {
+    char *alias;
+    char *pciDev;
+    int numaNode;
+    virDomainDeviceInfo info;
+};
 
 #define SCSI_SUPER_WIDE_BUS_MAX_CONT_UNIT 64
 #define SCSI_WIDE_BUS_MAX_CONT_UNIT 16
@@ -3276,6 +3284,7 @@ struct _virDomainDef {
     virDomainIOMMUDef *iommu;
     virDomainVsockDef *vsock;
     virDomainPstoreDef *pstore;
+    virDomainAcpiEgmDef *egm;
 
     void *namespaceData;
     virXMLNamespace ns;
@@ -3722,6 +3731,8 @@ void virDomainCryptoDefFree(virDomainCryptoDef *def);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(virDomainCryptoDef, virDomainCryptoDefFree);
 void virDomainPstoreDefFree(virDomainPstoreDef *def);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(virDomainPstoreDef, virDomainPstoreDefFree);
+void virDomainAcpiEgmDefFree(virDomainAcpiEgmDef *def);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(virDomainAcpiEgmDef, virDomainAcpiEgmDefFree);
 void virDomainNetTeamingInfoFree(virDomainNetTeamingInfo *teaming);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(virDomainNetTeamingInfo, virDomainNetTeamingInfoFree);
 void virDomainNetPortForwardFree(virDomainNetPortForward *pf);
