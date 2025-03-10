@@ -4863,6 +4863,85 @@ qemuValidateDomainDeviceDefPstore(virDomainPstoreDef *pstore,
     return 0;
 }
 
+static int
+qemuValidateDomainDeviceDefAcpiEgm(virDomainAcpiEgmDef *egm,
+                                  const virDomainDef *def,
+                                  virQEMUCaps *qemuCaps)
+{
+    g_autofree char *egm_path = NULL;
+    g_autofree char *egm_pci_path = NULL;
+    virDomainHostdevDef *hostdev = NULL;
+    size_t i;
+
+    if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_DEVICE_ACPI_EGM_MEMORY)) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                      _("ACPI EGM memory device is not supported with this QEMU binary"));
+        return -1;
+    }
+
+    /* Find the referenced PCI hostdev */
+    for (i = 0; i < def->nhostdevs; i++) {
+        virDomainHostdevDef *dev = def->hostdevs[i];
+
+        if (dev->mode != VIR_DOMAIN_HOSTDEV_MODE_SUBSYS ||
+            dev->source.subsys.type != VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI)
+            continue;
+
+        if (dev->info && dev->info->alias && STREQ(dev->info->alias, egm->pci_dev)) {
+            hostdev = dev;
+            break;
+        }
+    }
+
+    if (!hostdev) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                      _("Cannot find PCI device '%1$s' referenced by EGM device"),
+                      egm->pci_dev);
+        return -1;
+    }
+
+    /* Validate NUMA node if configured */
+    if (egm->node > virDomainNumaGetNodeCount(def->numa)) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                          _("NUMA node %1$d for EGM device does not exist"),
+                          egm->node);
+            return -1;
+    }
+
+    /* Validate EGM device path exists and is accessible */
+    egm_path = g_strdup_printf("/dev/%s", egm->alias);
+    if (!virFileExists(egm_path)) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                      _("EGM device path '%1$s' does not exist"),
+                      egm_path);
+        return -1;
+    }
+
+    /* Check if we have proper permissions */
+    if (access(egm_path, R_OK | W_OK) < 0) {
+        virReportSystemError(errno,
+                          _("Cannot access EGM device '%1$s'"),
+                          egm_path);
+        return -1;
+    }
+
+    egm_pci_path = g_strdup_printf("/sys/class/egm/%s/device", egm->alias);
+    /* Validate EGM pci device path */
+    egm_pci_path = g_strdup_printf("/sys/class/egm/%s/%04x:%02x:%02x.%x",
+                                egm->alias,
+                                hostdev->source.subsys.u.pci.addr.domain,
+                                hostdev->source.subsys.u.pci.addr.bus,
+                                hostdev->source.subsys.u.pci.addr.slot,
+                                hostdev->source.subsys.u.pci.addr.function);
+    if (!virFileExists(egm_pci_path)) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                       _("Cannot find PCI device path for EGM device '%1$s'"),
+                       egm->alias);
+        return -1;
+    }
+
+    return 0;
+}
 
 static int
 qemuSoundCodecTypeToCaps(int type)
@@ -5604,6 +5683,9 @@ qemuValidateDomainDeviceDef(const virDomainDeviceDef *dev,
 
     case VIR_DOMAIN_DEVICE_PSTORE:
         return qemuValidateDomainDeviceDefPstore(dev->data.pstore, def, qemuCaps);
+
+    case VIR_DOMAIN_DEVICE_EGM:
+        return qemuValidateDomainDeviceDefAcpiEgm(dev->data.egm, def, qemuCaps);
 
     case VIR_DOMAIN_DEVICE_LEASE:
     case VIR_DOMAIN_DEVICE_PANIC:
