@@ -729,6 +729,9 @@ VIR_ENUM_IMPL(virQEMUCaps,
               "virtio-mem-ccw", /* QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW */
               "blockdev-set-active", /* QEMU_CAPS_BLOCKDEV_SET_ACTIVE */
               "shim", /* QEMU_CAPS_MACHINE_SHIM */
+
+              /* 475 */
+              "acpi-egm-memory", /* QEMU_CAPS_DEVICE_ACPI_EGM_MEMORY */
     );
 
 
@@ -1419,6 +1422,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
     { "sev-snp-guest", QEMU_CAPS_SEV_SNP_GUEST },
     { "acpi-erst", QEMU_CAPS_DEVICE_ACPI_ERST },
     { "virtio-mem-ccw", QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW },
+    { "acpi-egm-memory", QEMU_CAPS_DEVICE_ACPI_EGM_MEMORY },
 };
 
 
