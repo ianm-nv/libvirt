@@ -736,6 +736,9 @@ VIR_ENUM_IMPL(virQEMUCaps,
               "bus-floppy", /* QEMU_CAPS_BUS_FLOPPY */
               "nvme", /* QEMU_CAPS_DEVICE_NVME */
               "nvme-ns", /* QEMU_CAPS_DEVICE_NVME_NS */
+
+              /* 480 */
+              "acpi-egm-memory", /* QEMU_CAPS_DEVICE_ACPI_EGM_MEMORY */
     );
 
 
@@ -1427,6 +1430,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
     { "virtio-mem-ccw", QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW },
     { "nvme", QEMU_CAPS_DEVICE_NVME },
     { "nvme-ns", QEMU_CAPS_DEVICE_NVME_NS },
+    { "acpi-egm-memory", QEMU_CAPS_DEVICE_ACPI_EGM_MEMORY },
 };
 
 
