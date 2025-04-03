@@ -714,6 +714,9 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
     /* 475 */
     QEMU_CAPS_VIRTIO_SCSI_IOTHREAD_MAPPING, /* virtio-scsi supports per-virtqueue iothread mapping */
 
+    /* 475 */
+    QEMU_CAPS_DEVICE_ACPI_EGM_MEMORY, /* For using extended memory */
+
     QEMU_CAPS_LAST /* this must always be the last item */
 } virQEMUCapsFlags;
 
